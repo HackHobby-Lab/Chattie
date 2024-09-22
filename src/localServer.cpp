@@ -24,11 +24,12 @@ bool ledState = false;
 
 struct User {
     String username;
-    String password; // In a real app, hash this for security
+    String password; 
+    bool isAdmin;
 };
 
 std::vector<User> users;
-
+User currentUser;
 // Load users from SPIFFS
 void loadUsers() {
     Serial.println("Loading Users");
@@ -68,28 +69,159 @@ void saveUser(const String& username, const String& password) {
     }
 }
 
+String cleanString(const String& str) {
+    String cleaned = str;
+    cleaned.replace("\n", ""); // Remove newline characters
+    cleaned.trim();             // Trim leading and trailing whitespace
+    return cleaned;
+}
 
-// Handle login request
+bool isAdminUser() {
+    // Check if the logged-in user is admin
+    // You could store the current username in a global variable upon login
+    return currentUser.username == "admin"; // Adjust as per your implementation
+}
+
+void handleViewUsers() {
+    // Only allow access if the logged-in user is admin
+    if (!isAdminUser()) {
+        server.send(403, "application/json", "{\"message\":\"Forbidden! Admins only.\"}");
+        return;
+    }
+
+    String userList = "[";
+    for (const auto& user : users) {
+        userList += "{\"username\":\"" + user.username + "\",\"isAdmin\":" + String(user.isAdmin) + "},";
+    }
+    userList.remove(userList.length() - 1); // Remove last comma
+    userList += "]";
+
+    server.send(200, "application/json", userList);
+}
+void handleAddUser() {
+    if (!isAdminUser()) {
+        server.send(403, "application/json", "{\"message\":\"Forbidden! Admins only.\"}");
+        return;
+    }
+
+    DynamicJsonDocument doc(1024);
+    String jsonBody = server.arg("plain");
+    Serial.print("Received JSON body: "); Serial.println(jsonBody);
+
+    DeserializationError error = deserializeJson(doc, jsonBody);
+    if (error) {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        server.send(400, "application/json", "{\"message\":\"Invalid JSON!\"}");
+        return;
+    }
+
+    String username = doc["username"];
+    String password = doc["password"];
+    // Check if the user already exists...
+    
+    users.push_back({username, password, false}); // New users are regular by default
+    server.send(200, "application/json", "{\"message\":\"User added successfully!\"}");
+}
+
+
+
+void handleRemoveUser() {
+    if (!isAdminUser()) {
+        server.send(403, "application/json", "{\"message\":\"Forbidden! Admins only.\"}");
+        return;
+    }
+
+    DynamicJsonDocument doc(1024);
+    String jsonBody = server.arg("plain");
+    Serial.print("Received JSON body: "); Serial.println(jsonBody);
+
+    DeserializationError error = deserializeJson(doc, jsonBody);
+    if (error) {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        server.send(400, "application/json", "{\"message\":\"Invalid JSON!\"}");
+        return;
+    }
+
+    String username = doc["username"];
+    
+    // Find and remove the user...
+    
+    server.send(200, "application/json", "{\"message\":\"User removed successfully!\"}");
+}
+
+
+
 void handleLogin() {
     Serial.println("In Login");
-    String username = server.arg("username");
-    String password = server.arg("password");
+    
+    DynamicJsonDocument doc(1024);
+    String jsonBody = server.arg("plain");
+    Serial.print("Received JSON body: "); Serial.println(jsonBody);
+
+    DeserializationError error = deserializeJson(doc, jsonBody);
+    if (error) {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        server.send(400, "application/json", "{\"message\":\"Invalid JSON!\"}");
+        return;
+    }
+
+    String username = doc["username"];
+    String password = doc["password"];
+    Serial.print("Extracted Username: "); Serial.println(username);
+    Serial.print("Extracted Password: "); Serial.println(password);
 
     for (const auto& user : users) {
-        if (user.username == username && user.password == password) {
+        Serial.print("Checking against stored user: "); Serial.println(user.username);
+        Serial.print("Stored Password: "); Serial.println(user.password);
+         String storedPassword = cleanString(user.password);
+        
+        if (user.username == username && storedPassword == password) {
+             if (user.username == "admin" ) {
+            currentUser = user;
+            server.send(200, "application/json", "{\"message\":\"Admin Login successful!\", \"isAdmin\": " + String(user.isAdmin) + "}");
+
+            // server.send(200, "application/json", "{\"message\":\"Admin login successful!\"}");
+            return;
+    }
+            
+            Serial.println("Login successful!");
             server.send(200, "application/json", "{\"message\":\"Login successful!\"}");
             return;
         }
+
+       
     }
+    
+    Serial.println("Login failed: Wrong username or password!");
     server.send(401, "application/json", "{\"message\":\"Wrong username or password!\"}");
 }
 
-// Handle signup request
+
+
 void handleSignup() {
     Serial.println("In Signup");
-    String username = "Hamza";
-    String password = "123456";
+    
+    // Create a buffer for the JSON data
+    DynamicJsonDocument doc(1024);
+    String jsonBody = server.arg("plain");
 
+    DeserializationError error = deserializeJson(doc, jsonBody);
+    if (error) {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        server.send(400, "application/json", "{\"message\":\"Invalid JSON!\"}");
+        return;
+    }
+
+    String username = doc["username"];
+    String password = doc["password"];
+    Serial.print("Signup Username: "); Serial.println(username);
+    Serial.print("Signup Password: "); Serial.println(password);
+
+    // Check for existing username
     for (const auto& user : users) {
         if (user.username == username) {
             server.send(409, "application/json", "{\"message\":\"Username already exists!\"}");
@@ -98,9 +230,11 @@ void handleSignup() {
     }
 
     saveUser(username, password);
-    users.push_back({username, password});
+    users.push_back({username, password});  // Store user
     server.send(200, "application/json", "{\"message\":\"Signup successful!\"}");
 }
+
+
 
 
 void startWebServer()
@@ -126,6 +260,9 @@ void startWebServer()
 //   server.on("/toggleLED", toggleLED);
     server.on("/login", HTTP_POST, handleLogin);
     server.on("/signup", HTTP_POST, handleSignup);
+     server.on("/view_users", HTTP_GET, handleViewUsers);
+    server.on("/add_user", HTTP_POST, handleAddUser);
+    server.on("/remove_user", HTTP_POST, handleRemoveUser);
 
   server.begin();
   Serial.println("HTTP server started");

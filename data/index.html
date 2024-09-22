@@ -45,6 +45,15 @@
             text-align: center;
             margin-top: 10px;
         }
+        #admin-panel {
+            display: none; /* Hidden by default */
+            margin-top: 20px;
+        }
+        #welcome-message {
+            display: none; /* Hidden by default */
+            text-align: center;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -64,9 +73,26 @@
             <button onclick="signup()">Sign Up</button>
             <div class="toggle-form">Already have an account? <a href="#" onclick="toggleForm()">Login</a></div>
         </div>
+        <div id="welcome-message"></div>
+        <div id="admin-panel">
+            <h2>Admin Actions</h2>
+            <button onclick="viewUsers()">View Users</button>
+            <ul id="user-list"></ul>
+
+            <h3>Add User</h3>
+            <input type="text" id="new-username" placeholder="New Username" required>
+            <input type="password" id="new-password" placeholder="New Password" required>
+            <button onclick="addUser()">Add User</button>
+
+            <h3>Remove User</h3>
+            <input type="text" id="remove-username" placeholder="Username to Remove" required>
+            <button onclick="removeUser()">Remove User</button>
+        </div>
     </div>
 
     <script>
+        let isAdmin = false; // Variable to track admin status
+
         function toggleForm() {
             const loginForm = document.getElementById('login-form');
             const signupForm = document.getElementById('signup-form');
@@ -93,6 +119,24 @@
 
             const result = await response.json();
             alert(result.message);
+
+            // Check if login is successful and if user is admin
+            if (result.success) {
+                document.getElementById('login-form').style.display = 'none'; // Hide login form
+                document.getElementById('signup-form').style.display = 'none'; // Hide signup form
+                document.getElementById('welcome-message').innerText = `Welcome, ${username}!`;
+                document.getElementById('welcome-message').style.display = 'block'; // Show welcome message
+
+                
+            }
+            if (result.isAdmin) {
+                    isAdmin = true; // Set admin status
+                    document.getElementById('admin-panel').style.display = 'block'; // Show admin panel
+                    document.getElementById('login-form').style.display = 'none'; // Hide login form
+                document.getElementById('signup-form').style.display = 'none'; // Hide signup form
+                document.getElementById('welcome-message').innerText = `Welcome, ${username}!`;
+                document.getElementById('welcome-message').style.display = 'block'; // Show welcome message
+                }
         }
 
         async function signup() {
@@ -107,6 +151,43 @@
                 body: JSON.stringify({ username, password })
             });
 
+            const result = await response.json();
+            alert(result.message);
+        }
+
+        async function viewUsers() {
+            const response = await fetch('/view_users');
+            const result = await response.json();
+            const userList = document.getElementById("user-list");
+            userList.innerHTML = ""; // Clear existing list
+            result.forEach(user => {
+                userList.innerHTML += `<li>${user.username} (Admin: ${user.isAdmin})</li>`;
+            });
+        }
+
+        async function addUser() {
+            const username = document.getElementById("new-username").value;
+            const password = document.getElementById("new-password").value;
+            const response = await fetch('/add_user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+            const result = await response.json();
+            alert(result.message);
+        }
+
+        async function removeUser() {
+            const username = document.getElementById("remove-username").value;
+            const response = await fetch('/remove_user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username })
+            });
             const result = await response.json();
             alert(result.message);
         }
