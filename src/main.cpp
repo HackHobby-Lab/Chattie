@@ -1,18 +1,24 @@
-#include <Arduino.h>
 
-// put function declarations here:
-int myFunction(int, int);
+#include <WiFi.h>
+#include "localServer.h"
+
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  
+    Serial.begin(115200);
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW);
+
+  if (!SPIFFS.begin()) {
+    Serial.println("Failed to mount file system");
+    return;
+  }
+  
+
+  startAPMode();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  server.handleClient();
 }
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
-}
