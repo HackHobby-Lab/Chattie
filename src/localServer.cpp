@@ -181,17 +181,20 @@ void handleLogin() {
         if (user.username == username && storedPassword == password) {
              if (user.username == "admin" ) {
             currentUser = user;
-            server.send(200, "application/json", "{\"message\":\"Admin Login successful!\", \"isAdmin\": " + String(user.isAdmin) + "}");
+             bool isAdmin = (user.username == "admin");
 
+            // Send a response including both the success and isAdmin status
+            String response = "{\"success\":true, \"message\":\"Login successful!\", \"isAdmin\":" + String(isAdmin) + "}";
+            server.send(200, "application/json", response);
             // server.send(200, "application/json", "{\"message\":\"Admin login successful!\"}");
-            return;
+            // return;
     }
             
             Serial.println("Login successful!");
-            server.send(200, "application/json", "{\"message\":\"Login successful!\"}");
+            server.send(200, "application/json", "{\"success\":true,\"message\":\"Login successful!\"}");
             return;
         }
-
+// 366950
        
     }
     

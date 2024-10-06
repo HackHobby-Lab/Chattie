@@ -119,9 +119,10 @@
 
             const result = await response.json();
             alert(result.message);
-
+            console.log(result);
             // Check if login is successful and if user is admin
             if (result.success) {
+                console.log('logged in');
                 document.getElementById('login-form').style.display = 'none'; // Hide login form
                 document.getElementById('signup-form').style.display = 'none'; // Hide signup form
                 document.getElementById('welcome-message').innerText = `Welcome, ${username}!`;
@@ -136,6 +137,7 @@
                 document.getElementById('signup-form').style.display = 'none'; // Hide signup form
                 document.getElementById('welcome-message').innerText = `Welcome, ${username}!`;
                 document.getElementById('welcome-message').style.display = 'block'; // Show welcome message
+                console.log('Admin');
                 }
         }
 
